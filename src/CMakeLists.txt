@@ -166,27 +166,48 @@ if( ${DEBUG} )
 
 endif()
 
-add_executable( rgb-to-hdmi
+
+# Release build
+add_executable(rgb-to-hdmi_release
     ${core_files}
 )
-
-target_link_libraries (rgb-to-hdmi m)
-
+set_target_properties(rgb-to-hdmi_release PROPERTIES OUTPUT_NAME "rgb-to-hdmi")
+target_link_libraries(rgb-to-hdmi_release m)
 add_custom_command(
-    TARGET rgb-to-hdmi POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} ./rgb-to-hdmi -O binary ${KERNEL_NAME}
+    TARGET rgb-to-hdmi_release POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} ./rgb-to-hdmi -O binary kernelrpi.img
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Convert the ELF output file to a binary image" )
+    COMMENT "Convert the ELF output file to kernelrpi.img" )
+
+# Debug build
+add_executable(rgb-to-hdmi_debug
+    ${core_files}
+)
+set_target_properties(rgb-to-hdmi_debug PROPERTIES OUTPUT_NAME "rgb-to-hdmi_debug")
+target_compile_definitions(rgb-to-hdmi_debug PRIVATE DEBUG=1)
+target_compile_options(rgb-to-hdmi_debug PRIVATE -g)
+target_link_libraries(rgb-to-hdmi_debug m)
+add_custom_command(
+    TARGET rgb-to-hdmi_debug POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} ./rgb-to-hdmi_debug -O binary kernel_rpi_debug.img
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Convert the ELF output file to kernel_rpi_debug.img" )
 
 # Generate a header file with the current git version in it
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+file(RELATIVE_PATH GITVERSION_OUTPUT_FILE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/gitversion.h
+)
 
 add_custom_target(gitversion ALL)
 
 add_custom_command(
     TARGET gitversion
-    COMMAND bash version.sh
+    COMMAND bash scripts/version.sh "${GITVERSION_OUTPUT_FILE}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_dependencies(rgb-to-hdmi gitversion)
+add_dependencies(rgb-to-hdmi_release gitversion)
+add_dependencies(rgb-to-hdmi_debug gitversion)
